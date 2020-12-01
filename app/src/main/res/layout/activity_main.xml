@@ -8,6 +8,25 @@
     android:orientation="vertical"
     tools:context=".MainActivity">
 
+    <SearchView
+        android:id="@+id/search_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" >
+    </SearchView>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="250dp"
+        tools:listitem="@layout/row_item"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        />
+    <TextView
+        android:id="@+id/textView5"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="      검색 결과 가져오는중.."
+        android:textSize="22sp" />
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -26,23 +45,26 @@
             android:text="검색" />
     </LinearLayout>
 
-    <fragment
-        android:id="@+id/map"
-        android:name="com.google.android.gms.maps.SupportMapFragment"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
 
-        <Button
-            android:id="@+id/btn_review"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@android:color/holo_red_dark"
-            android:text="+"
-            android:textColor="@color/common_google_signin_btn_text_dark_default"
-            android:textSize="36sp"
-            tools:layout_editor_absoluteX="303dp"
-            tools:layout_editor_absoluteY="661dp" />
+    <!--
 
-    </fragment>
+-->
+        <fragment
+            android:id="@+id/map"
+            android:name="com.google.android.gms.maps.SupportMapFragment"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+            <Button
+                android:id="@+id/btn_review"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@android:color/holo_red_dark"
+                android:text="+"
+                android:textColor="@color/common_google_signin_btn_text_dark_default"
+                android:textSize="36sp"
+                tools:layout_editor_absoluteX="303dp"
+                tools:layout_editor_absoluteY="661dp" />
 
-</LinearLayout>
+        </fragment>
+
+    </LinearLayout>

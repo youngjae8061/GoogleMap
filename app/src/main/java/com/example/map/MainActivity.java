@@ -5,6 +5,9 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.DividerItemDecoration;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
 import android.app.ProgressDialog;
@@ -12,12 +15,19 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
 import android.location.Location;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.SearchView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -38,8 +48,12 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.GeoPoint;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.maps.android.clustering.ClusterManager;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, LocationListener{
@@ -54,6 +68,29 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     GeoPoint gp;
     MarkerOptions markerOptions;
     FirebaseFirestore db; //파이어베이스 인스턴스
+
+    // 테스트중 ===============================================================================================================================================================
+    //List<String> items = new ArrayList<>();
+    SearchView searchView;
+    TextView resultTextView;
+    TextView spot_name, review;
+
+    RecyclerView recyclerView;
+    RecyclerAdapter recyclerAdapter;
+
+    List<String> searchList;
+
+    FirebaseStorage storage = FirebaseStorage.getInstance();
+
+    private ClusterManager<MyItem> mClusterManager;
+
+    /*List<Review> dataList = new ArrayList<>();
+    RecyclerView mRecyclerView;
+    Context context;
+    RecyclerAdapter adapter;
+    //layout manager for recyclerview
+    RecyclerView.LayoutManager layoutManager;
+    */// 테스트중 ===============================================================================================================================================================
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,7 +108,71 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         edt_sch = (EditText)findViewById(R.id.edt_sch);
 
         db = FirebaseFirestore.getInstance();
-        
+
+        // 테스트중 ===============================================================================================================================================================
+        searchView = (SearchView)findViewById(R.id.search_view);
+        resultTextView = (TextView)findViewById(R.id.textView5);
+        //resultTextView.setText(getResult());
+        searchList = new ArrayList<>();
+        spot_name = (TextView)findViewById(R.id.textView);
+        review = (TextView)findViewById(R.id.rowCountTextView);
+
+        recyclerView = findViewById(R.id.recyclerView);
+        recyclerAdapter = new RecyclerAdapter(searchList);
+
+        getData();
+
+//        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setAdapter(recyclerAdapter);
+
+        DividerItemDecoration dividerItemDecoration = new DividerItemDecoration(this, DividerItemDecoration.VERTICAL);
+        recyclerView.addItemDecoration(dividerItemDecoration);
+
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                return false;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                recyclerAdapter.getFilter().filter(newText);
+                return false;
+            }
+        });
+
+        /*//view 활성화
+        mRecyclerView = findViewById(R.id.recyclerView);
+
+        //set recyclerview properties
+        mRecyclerView.setHasFixedSize(true);
+        layoutManager = new LinearLayoutManager(this);
+        mRecyclerView.setLayoutManager(layoutManager);
+
+        //adapter
+        adapter = new RecyclerAdapter(MainActivity.this, dataList, context);
+
+
+        edt_sch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable editable) {
+                filter(editable.toString());
+            }
+        });
+        items = new ArrayList<>();
+        */// 테스트중 ===============================================================================================================================================================
+
+
         btn_review.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -106,6 +207,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                                             googleMap.moveCamera(CameraUpdateFactory.zoomTo(12));        // 화면은 15만큼 당겨라?  단계는 1~21까지 있음 숫자가 클수록 자세함
                                             markerOptions = new MarkerOptions().position(latLng).title(String.valueOf(document.get("spot_name")));
                                             googleMap.addMarker(markerOptions);
+
+
+                                            mClusterManager = new ClusterManager<>(MainActivity.this, googleMap);
+                                            googleMap.setOnCameraIdleListener(mClusterManager);
+                                            googleMap.setOnMarkerClickListener(mClusterManager);
+                                            addItems(gp);
                                         }
                                     } else {
                                         startToast("일치하는 결과가 없습니다.");
@@ -115,8 +222,48 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }else startToast("검색할 과목을 입력해주세요.");
             }
         });
-    }
+    }//onCreate()
 
+
+    /*// 테스트중 ===============================================================================================================================================================
+    private void filter(String text) {
+        List<Review> filteredList = new ArrayList<>();
+
+        for (Review r : dataList) {
+            //if (review.getSpot_name().toLowerCase().contains(text.toLowerCase())) {
+            filteredList.add(r);
+            //}
+        }
+        adapter.filterList(filteredList);
+    }
+    */// 테스트중 ===============================================================================================================================================================
+
+
+    //review 전체 데이터 가져오기
+    private void getData(){
+        db.collection("review")
+                .get()
+                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                    @Override
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                        if (task.isSuccessful()) {
+                            for (QueryDocumentSnapshot document : task.getResult()) {
+                                String a = document.getString("spot_name");
+                                searchList.add(a);
+                            }
+                        } else {
+                            //실패했을경우
+                        }
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        //called when there is any error while retriving
+                        Toast.makeText(MainActivity.this, e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
     @Override
     public void onLocationChanged(Location location) {
         latitude = location.getLatitude();  //변경된 위도
@@ -162,10 +309,45 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 latitude = 37.5796212;
                 longitude = 126.9748523;
             }*/
+
+
+
         } else {    //위치정보 허용하지 않았을 때
             checkLocationPermissionWithRationale();
         }
     }
+
+    private void addItems(GeoPoint geo){
+        /*double lat = 37.5172f, lng = 127.0473f; //서울 강남
+        for(int i =0 ; i< 10; i++){
+            double offset = i/60d;
+            lat = lat+offset;
+            lng = lng+offset;
+            MyItem offsetItem = new MyItem(lat, lng);
+            mClusterManager.addItem(offsetItem);
+        }*/
+        db.collection("review")
+                .whereEqualTo("map", geo)
+                .get()
+                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                    @Override
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                        if (task.isSuccessful()) {
+                            for (QueryDocumentSnapshot document : task.getResult()) {
+                                startToast(String.valueOf(document.get("spot_name")));
+                                GeoPoint gp1 = (GeoPoint)document.get("map");
+                                double lat = gp1.getLatitude(), lng = gp1.getLongitude(); //서울 강남
+                                    MyItem offsetItem = new MyItem(lat, lng);
+                                    mClusterManager.addItem(offsetItem);
+                            }
+                        } else {
+                            startToast("사진을 못가져왔어요 ㅠ");
+                        }
+                    }
+                });
+        mClusterManager.cluster();
+    }
+
 
     public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
 
